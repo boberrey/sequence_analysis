@@ -12,24 +12,41 @@ adapters=$3
 ref_genome=$4
 output_name=$5
 error_log="$output_name-pipe.err"
-# trim adapters
 
+# variables and filenames:
+tr1="$output_name-trimmed-pair1.fastq"
+tr2="$output_name-trimmed-pair2.fastq"
+trim_logfile="$output_name-trimmed.log"
+sam_file="$output_name.sam"
+unsorted_bam_file="$output_name-unsorted.bam"
+sorted_bam="$output_name.bam"
+bedpe_file="$output_name.bedpe"
+bam_bai_file="$sorted_bam.bai"
+cleaned_bedpe="$output_name-cleaned.bedpe"
+stranded_bed_file="$output_name-insert.bed"
+genome_fasta="$ref_genome.fa"
+fasta_outfile="$output_name.fa"
+
+# bedpe columns:
+r1_chr="\$1"
+r1_strt="\$2"
+r1_stop="\$3"
+r2_chr="\$4"
+r2_strt="\$5"
+r2_stop="\$6"
+name="\$7"
+score="\$8"
+r1_strand="\$9"
+
+# trim adapters
 echo ""
 echo "Trimming adapters with skewer..."
 echo ""
 
 skewer -y $adapters -o $output_name -m pe $1 $2
 
-# trimming output
-tr1="$output_name-trimmed-pair1.fastq"
-tr2="$output_name-trimmed-pair2.fastq"
-trim_logfile="$output_name-trimmed.log"
 
 # align
-sam_file="$output_name.sam"
-unsorted_bam_file="$output_name-unsorted.bam"
-
-# There's got to be a better way to skip lines...
 echo ""
 echo "Aligning with bowtie2..."
 echo ""
@@ -37,11 +54,7 @@ echo ""
 bowtie2 -X5000 -p18 $ref_genome -1 $tr1 -2 $tr2 -S $sam_file
 samtools view -b -S -o $unsorted_bam_file $sam_file
 
-
-
 # sort by chrom position
-sorted_bam="$output_name.bam"
-
 echo ""
 echo "Sorting by chrom position..."
 echo ""
@@ -54,28 +67,35 @@ samtools index $sorted_bam
 rm $tr1 $tr2 $trim_logfile $sam_file $unsorted_bam_file
 
 # convert to mate1-maintained bedpe file:
-
 echo ""
 echo "Creating strand-maintained fasta files..."
 echo ""
-bedpe_file="$output_name.bedpe"
+
 bedtools bamtobed -mate1 -bedpe -i $sorted_bam > $bedpe_file 2> $error_log
 
-rm $sorted_bam "$sorted_bam.bai" $error_log
+# Currently, I don't want to keep bam files.
+rm $sorted_bam $bam_bai_file
 
 # 'clean-up' bedpe file by removing any unmapped pairs
-cleaned_bedpe="$output_name-cleaned.bedpe"
-awk '{if($1 > 0 && $4 > 0)print}' < $bedpe_file > $cleaned_bedpe
+awk_cmd1="{if($r1_strt > 0 && $r2_strt > 0) print}"
+awk "$awk_cmd1" < $bedpe_file > $cleaned_bedpe
 rm $bedpe_file
 
 # convert the mate1 bedpe file into an 'insert' bed file
-stranded_bed_file="$output_name-insert.bed"
-awk 'BEGIN{OFS = "\t"}{if($2 > $5){print $1,$5,$3,$7,$8,$9} else if($2 <= $5){print $1,$2,$6,$7,$8,$9}}' < $cleaned_bedpe > $stranded_bed_file
+awk_cmd2="BEGIN{OFS = \"\t\"}{
+	if($r1_strt > $r2_strt){
+		print $r1_chr, $r2_strt, $r1_stop, $name, $score, $r1_strand
+	} else if($r1_strt <= $r2_strt){
+		print $r1_chr, $r1_strt, $r2_stop, $name, $score, $r1_strand
+	}
+}"
+awk "$awk_cmd2" < $cleaned_bedpe > $stranded_bed_file
+
 rm $cleaned_bedpe
 
 # Now get fasta from insert bed file (-s option important for maintaining strandedness!):
-fasta_outfile="$output_name.fa"
-bedtools getfasta -fi "$ref_genome.fa" -bed $stranded_bed_file -fo $fasta_outfile -s
+
+bedtools getfasta -fi $genome_fasta -bed $stranded_bed_file -fo $fasta_outfile -s -name
 rm $stranded_bed_file
 
 echo ""
