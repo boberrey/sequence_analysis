@@ -13,34 +13,33 @@ Outputs:
 Ben Ober-Reynolds
 """
 
-
-
 import os
 import sys
 import argparse
-import numpy as np
 from joblib import Parallel, delayed
 
 def main():
     ################ Parse input parameters ################
-
+    
     #set up command line argument parser
-    parser = argparse.ArgumentParser(description='script for isolating specific clusters from fastq files')
+    parser = argparse.ArgumentParser(description='script for isolating specific \
+        clusters from fastq files')
     group = parser.add_argument_group('required arguments:')
     group.add_argument('-cl', '--cluster_list', required=True,
                         help='file containing list of clusters to select')
     group.add_argument('-fd', '--fastq_directory', required=True,
                         help='directory containing fastq files')
     group = parser.add_argument_group('optional arguments')
-    group.add_argument('-od','--output_directory', default="",
-                        help='output directory for filtered fastq files (default is original fastq_directory)')
-    group.add_argument('-op','--output_prefix', default="",
-                        help='output prefix for filtered fastq files (default is cluster list filename)')
+    group.add_argument('-od','--output_directory',
+                        help='output directory for filtered fastq files \
+                        (default is original fastq_directory)')
+    group.add_argument('-op','--output_prefix',
+                        help='output prefix for filtered fastq files \
+                        (default is cluster list filename)')
     group.add_argument('-n','--num_cores', type=int, default=1,
-                        help='number of cores to use (should be same as number of fastq files)')
+                        help='number of cores to use (should be same as number \
+                            of fastq files)')
 
-    # Pre-defined variables:
-    fastq_extension = '.fastq'
 
     # print help if no arguments provided
     if len(sys.argv) <= 1:
@@ -49,7 +48,13 @@ def main():
 
     #parse command line arguments
     args = parser.parse_args()
+    numCores = args.num_cores
 
+    # Pre-defined variables, constants, and settings
+    fastq_extension = 'fastq'
+
+
+    # Check input directory
     fastq_dir = args.fastq_directory
     if not os.path.isdir(fastq_dir):
         print("Error: invalid fastq directory selection. Exiting...")
@@ -57,7 +62,7 @@ def main():
 
     # If no output directory given, use input directory
     output_dir = args.output_directory
-    if output_dir == "":
+    if not output_dir:
         output_dir = fastq_dir
     if not os.path.isdir(output_dir):
         print("Error: invalid output directory selection. Exiting...")
@@ -65,11 +70,9 @@ def main():
 
     # If no prefix is given, use cluster list filename
     output_prefix = args.output_prefix
-    if output_prefix == "":
+    if not output_prefix:
         output_prefix = os.path.splitext(os.path.basename(args.cluster_list))[0]
-
-    # Number of cores for parallel processing, if applicable 
-    numCores = args.num_cores
+    
 
     # Gather fastq files:
     print("Finding fastq files in directory {}".format(fastq_dir))
@@ -93,7 +96,7 @@ def main():
             fastq_file, output_prefix, 
             output_dir, fastq_extension)\
              for fastq_file in fastq_list]
-
+    
     # Report results of filtering:
     for result in results:
         print("file {} has {} clusters, filtered down from {}".format(
@@ -150,6 +153,12 @@ def filter_fastq(filter_set, fastq_filename, output_prefix,
     """
     filter a fastq file by clusters that exist in the cluster set, then
     save the filtered file as a new file
+    (Note: I tried this function using biopython tools first, but it was an 
+        order of magnitude slower than writing my own fastq parser. From what
+        I could find online, this is likely because the biopython 
+        implementations of the parsing and writing functions include 
+        significantly more error checking than required for standard
+        4-line fastq's)
     Input: filter_set, fastq_filename, fastq_identifier, output_prefix
     Output: saved filtered file
     """
@@ -158,8 +167,10 @@ def filter_fastq(filter_set, fastq_filename, output_prefix,
     # CNTATAATGATTCTTATTGACCAAAAAGCTGACAATTCACTTATTTTGCTTGACTATTTATTATACTTTCATCATA
     # +
     # C#8BCGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGFGGGGGGGGGGGG
+    
     fastq_basename = os.path.splitext(os.path.basename(fastq_filename))[0]
-    new_filename = output_dir + output_prefix + fastq_basename + fastq_extension
+    new_filename = output_dir + output_prefix + '_' + fastq_basename + '.' + \
+        fastq_extension
 
     # get the total number of lines:
     total_lines = 0
@@ -190,7 +201,6 @@ def filter_fastq(filter_set, fastq_filename, output_prefix,
     # return the new filename, the starting number of clusters,
     # and the number of clusters kept
     return [new_filename, cluster_count, num_clusters]
-
 
 
 

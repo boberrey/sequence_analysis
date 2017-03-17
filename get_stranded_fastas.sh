@@ -77,19 +77,19 @@ bedtools bamtobed -mate1 -bedpe -i $sorted_bam > $bedpe_file 2> $error_log
 rm $sorted_bam $bam_bai_file
 
 # 'clean-up' bedpe file by removing any unmapped pairs
-awk_cmd1="{if($r1_strt > 0 && $r2_strt > 0) print}"
-awk "$awk_cmd1" < $bedpe_file > $cleaned_bedpe
+clean_bedpe_cmd="{if($r1_strt > 0 && $r2_strt > 0) print}"
+awk "$clean_bedpe_cmd" < $bedpe_file > $cleaned_bedpe
 rm $bedpe_file
 
 # convert the mate1 bedpe file into an 'insert' bed file
-awk_cmd2="BEGIN{OFS = \"\t\"}{
+make_insert_cmd="BEGIN{OFS = \"\t\"}{
 	if($r1_strt > $r2_strt){
 		print $r1_chr, $r2_strt, $r1_stop, $name, $score, $r1_strand
 	} else if($r1_strt <= $r2_strt){
 		print $r1_chr, $r1_strt, $r2_stop, $name, $score, $r1_strand
 	}
 }"
-awk "$awk_cmd2" < $cleaned_bedpe > $stranded_bed_file
+awk "$make_insert_cmd" < $cleaned_bedpe > $stranded_bed_file
 
 rm $cleaned_bedpe
 
