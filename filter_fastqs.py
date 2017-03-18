@@ -18,41 +18,38 @@ import sys
 import argparse
 from joblib import Parallel, delayed
 
-def main():
-    ################ Parse input parameters ################
-    
-    #set up command line argument parser
+
+def main():  
+    # set up command line argument parser
     parser = argparse.ArgumentParser(description='script for isolating specific \
         clusters from fastq files')
     group = parser.add_argument_group('required arguments:')
     group.add_argument('-cl', '--cluster_list', required=True,
-                        help='file containing list of clusters to select')
+        help='file containing list of clusters to select')
     group.add_argument('-fd', '--fastq_directory', required=True,
-                        help='directory containing fastq files')
+        help='directory containing fastq files')
     group = parser.add_argument_group('optional arguments')
-    group.add_argument('-od','--output_directory',
-                        help='output directory for filtered fastq files \
-                        (default is original fastq_directory)')
-    group.add_argument('-op','--output_prefix',
-                        help='output prefix for filtered fastq files \
-                        (default is cluster list filename)')
-    group.add_argument('-n','--num_cores', type=int, default=1,
-                        help='number of cores to use (should be same as number \
-                            of fastq files)')
-
+    group.add_argument('-od', '--output_directory',
+        help='output directory for filtered fastq files (default is original \
+            fastq_directory)')
+    group.add_argument('-op', '--output_prefix',
+        help='output prefix for filtered fastq files (default is cluster list \
+            filename)')
+    group.add_argument('-n', '--num_cores', type=int, default=1,
+        help='number of cores to use (should be same as number of fastq \
+            files)')
 
     # print help if no arguments provided
     if len(sys.argv) <= 1:
         parser.print_help()
         sys.exit()
 
-    #parse command line arguments
+    # parse command line arguments
     args = parser.parse_args()
     numCores = args.num_cores
 
     # Pre-defined variables, constants, and settings
     fastq_extension = 'fastq'
-
 
     # Check input directory
     fastq_dir = args.fastq_directory
@@ -73,35 +70,31 @@ def main():
     if not output_prefix:
         output_prefix = os.path.splitext(os.path.basename(args.cluster_list))[0]
     
-
     # Gather fastq files:
     print("Finding fastq files in directory {}".format(fastq_dir))
-    fastq_list = find_files_in_directory(fastq_dir, extensionList=[fastq_extension])
+    fastq_list = find_files_in_directory(fastq_dir, 
+        extensionList=[fastq_extension])
 
     # Make set of clusters to compare against:
     cluster_set = get_clusters_to_keep(args.cluster_list)
-    print("Will keep reads based on cluster IDs in {}".format(args.cluster_list))
+    print("Will keep reads based on cluster IDs in {}\
+        ".format(args.cluster_list))
     
     # loop thorugh fastq files in parallel or in sequence
     results = []
     if numCores > 1:
         print("Filtering fastq files on {} cores...".format(numCores))
-        results = (Parallel(n_jobs=numCores, verbose = 10)\
-            (delayed(filter_fastq)(cluster_set, 
-            fastq_file, output_prefix, 
-            output_dir, fastq_extension)\
-             for fastq_file in fastq_list))
+        results = (Parallel(n_jobs=numCores, verbose=10)\
+            (delayed(filter_fastq)(cluster_set, fastq_file, output_prefix, 
+            output_dir, fastq_extension) for fastq_file in fastq_list))
     else:
-        results = [filter_fastq(cluster_set, 
-            fastq_file, output_prefix, 
-            output_dir, fastq_extension)\
-             for fastq_file in fastq_list]
+        results = [filter_fastq(cluster_set, fastq_file, output_prefix, 
+            output_dir, fastq_extension) for fastq_file in fastq_list]
     
     # Report results of filtering:
     for result in results:
         print("file {} has {} clusters, filtered down from {}".format(
             result[0], result[1], result[2]))
-
 
 
 def find_files_in_directory(dirPath, extensionList=None, 
@@ -110,7 +103,8 @@ def find_files_in_directory(dirPath, extensionList=None,
     Locate files in a given directory path. Optionally, desired files are 
     identified as matching one of the extension types provided in 
     'extensionList'
-    Input: directory path, list of approved extensions, (list of excluded extensions)
+    Input: directory path, list of approved extensions, (list of excluded 
+        extensions)
     Output: List of found files 
     """
     def extension_match(filename, extensionList=None):
@@ -125,7 +119,7 @@ def find_files_in_directory(dirPath, extensionList=None,
     fileList = []
     for currFilename in dirList:
         if (extension_match(currFilename, extensionList) 
-            and not extension_match(currFilename, excludedExtensionList)):
+        and not extension_match(currFilename, excludedExtensionList)): 
             fileList.append(dirPath+currFilename)
     if len(dirList) == 0:
         print('\tNONE FOUND')
@@ -148,8 +142,8 @@ def get_clusters_to_keep(filename):
     return cluster_set
 
 
-def filter_fastq(filter_set, fastq_filename, output_prefix, 
-    output_dir, fastq_extension):
+def filter_fastq(filter_set, fastq_filename, output_prefix, output_dir, 
+    fastq_extension):
     """
     filter a fastq file by clusters that exist in the cluster set, then
     save the filtered file as a new file
@@ -164,9 +158,9 @@ def filter_fastq(filter_set, fastq_filename, output_prefix,
     """
     # Example fastq format:
     # @M00653:218:000000000-AYC5G:1:1101:20964:1096 1:N:0:1
-    # CNTATAATGATTCTTATTGACCAAAAAGCTGACAATTCACTTATTTTGCTTGACTATTTATTATACTTTCATCATA
+    # CNTATAATGATTCTTATTGACCAAAAAGCTGACAATTCACTTATTTTGCTTGACTATTTATTATACTTTCA
     # +
-    # C#8BCGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGFGGGGGGGGGGGG
+    # C#8BCGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGFGGGGGGG
     
     fastq_basename = os.path.splitext(os.path.basename(fastq_filename))[0]
     new_filename = output_dir + output_prefix + '_' + fastq_basename + '.' + \
@@ -201,7 +195,6 @@ def filter_fastq(filter_set, fastq_filename, output_prefix,
     # return the new filename, the starting number of clusters,
     # and the number of clusters kept
     return [new_filename, cluster_count, num_clusters]
-
 
 
 if __name__ == '__main__':

@@ -18,45 +18,42 @@ import sys
 import time
 import argparse
 import pandas as pd
-
 # Force matplotlib to use a non-interactive backend
 import matplotlib
 matplotlib.use('Agg')
 # This will prevent it from trying to show plots during code execution
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-def main():
-    ################ Parse input parameters ################
 
-    #set up command line argument parser
-    parser = argparse.ArgumentParser(description='script for isolating specific \
-        clusters from fastq files')
+def main():
+
+    # set up command line argument parser
+    parser = argparse.ArgumentParser(description='Plot the previously \
+        calculated motif enrichments from a pickled dictionary.')
     group = parser.add_argument_group('required arguments:')
     group.add_argument('-dd', '--densities_dict', required=True,
-                        help='pickled dictionary containing previously calculated \
-                        motif densities.')
+        help='pickled dictionary containing previously calculated motif \
+        densities.')
     group.add_argument('-pl', '--pattern_list', required=True,
-                        help='file containing patterns from the densities dict \
-                        that should be plotted. File is a single column of patterns, \
-                        and order of patterns will determine plot order.')
+        help='file containing patterns from the densities dict that should be \
+        plotted. File is a single column of patterns, and order of patterns \
+        will determine plot order.')
     group = parser.add_argument_group('optional arguments')
-    group.add_argument('-po','--pool_order',
-                        help='single column file containing sequence pool order.')
-    group.add_argument('-od','--output_directory', default=".",
-                        help='output directory for statistics file and figures. \
-                        Default is current directory')
-    group.add_argument('-op','--output_prefix', default="enrichment",
-                        help='output prefix for results file and figures')
-
+    group.add_argument('-po', '--pool_order',
+        help='single column file containing sequence pool order.')
+    group.add_argument('-od', '--output_directory', default=".",
+        help='output directory for statistics file and figures. Default is \
+        current directory')
+    group.add_argument('-op', '--output_prefix', default="enrichment",
+        help='output prefix for results file and figures')
 
     # print help if no arguments provided
     if len(sys.argv) <= 1:
         parser.print_help()
         sys.exit()
         
-    #parse command line arguments
+    # parse command line arguments
     args = parser.parse_args()
 
     # Pre-defined variables, constants, and settings
@@ -114,7 +111,6 @@ def read_in_list(list_file):
     return return_list
 
 
-
 def plot_facet_boxplots(pattern_list, results_dict, pool_order, pattern_col_header, 
     color_scheme, col_num, xlab, ylab, output_directory, output_prefix, 
     resolution, file_format):
@@ -126,7 +122,8 @@ def plot_facet_boxplots(pattern_list, results_dict, pool_order, pattern_col_head
     Output: saved plot
     """
     # how many colors are required:
-    pool_number = max([len(x) for x in [y.keys() for y in results_dict.values()]])
+    pool_number = max([len(x) for x in [y.keys() 
+        for y in results_dict.values()]])
     pal = color_scheme[:pool_number]
 
     # Format data for plotting
@@ -141,8 +138,8 @@ def plot_facet_boxplots(pattern_list, results_dict, pool_order, pattern_col_head
     # Sort by pool order (for some reason passing order to the boxplot mapping
     # doesn't work, so this is a less ideal workaround):
     if pool_order:
-        data_melt.loc[:,'variable'] = pd.Categorical(data_melt.loc[:,'variable'], 
-            categories=pool_order)
+        data_melt.loc[:, 'variable'] = pd.Categorical(
+            data_melt.loc[:, 'variable'], categories=pool_order)
 
     # Generate plot:
     g = sns.FacetGrid(data_melt, col=pattern_col_header, sharey=False, 
@@ -166,7 +163,6 @@ def plot_facet_boxplots(pattern_list, results_dict, pool_order, pattern_col_head
     print("Saving plot to {}...".format(output_file))
     plt.savefig(output_file, dpi=resolution, format=file_format)
     plt.close()
-
 
 
 if __name__ == '__main__':

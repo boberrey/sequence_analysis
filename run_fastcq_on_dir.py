@@ -20,29 +20,28 @@ import subprocess
 from termcolor import colored
 from filter_fastqs import find_files_in_directory
 
+
 def main():
-    ################ Parse input parameters ################
     
-    #set up command line argument parser
+    # set up command line argument parser
     parser = argparse.ArgumentParser(description='Script for running fastqc \
         on a directory of fastqs and piping the summaries to stdout.')
     group = parser.add_argument_group('required arguments:')
     group.add_argument('-fd', '--fastq_directory', required=True,
-                        help='directory containing fastq files')
+        help='directory containing fastq files')
     group = parser.add_argument_group('optional arguments')
-    group.add_argument('-od','--output_directory',
-                        help='output directory for fastqc reports \
-                        (default is original fastq_directory)')
-    group.add_argument('-k','--kmer_size', type=str, default="5",
-                        help='k-mer length option for fastqc. Default is 5.')
-
+    group.add_argument('-od', '--output_directory',
+        help='output directory for fastqc reports (default is original \
+            fastq_directory)')
+    group.add_argument('-k', '--kmer_size', type=str, default="5",
+        help='k-mer length option for fastqc. Default is 5.')
 
     # print help if no arguments provided
     if len(sys.argv) <= 1:
         parser.print_help()
         sys.exit()
 
-    #parse command line arguments
+    # parse command line arguments
     args = parser.parse_args()
 
     # Pre-defined variables, constants, and settings
@@ -57,7 +56,6 @@ def main():
     pass_color = 'green'
     warn_color = 'yellow'
     fail_color = 'red'
-
 
     # Check input directory
     fastq_dir = args.fastq_directory
@@ -78,7 +76,8 @@ def main():
 
     # Gather fastq files:
     print("Finding fastq files in directory {}".format(fastq_dir))
-    fastq_list = find_files_in_directory(fastq_dir, extensionList=[fastq_extension])
+    fastq_list = find_files_in_directory(fastq_dir, 
+        extensionList=[fastq_extension])
 
     # Run fastqc on files:
     print("Running {} on found files...".format(fastqc_command))
@@ -89,8 +88,8 @@ def main():
     for fastq_file in fastq_list:
         # Where the summary file got saved to
         summary_file = output_dir + '/' + \
-        os.path.splitext(os.path.basename(fastq_file))[0] + \
-        fastqc_folder_ext + summary_file_name
+            os.path.splitext(os.path.basename(fastq_file))[0] + \
+            fastqc_folder_ext + summary_file_name
         # Now write to stdout and to file:
         print("Summary of fasqc report for {}".format(fastq_file))
         with open(summary_file, 'r') as infile, \
@@ -106,10 +105,6 @@ def main():
                 print(colored(line.strip(), color))
                 outfile.write(line)
             print('')
-
-
-
-
 
 
 if __name__ == '__main__':

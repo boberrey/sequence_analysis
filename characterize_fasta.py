@@ -14,43 +14,37 @@ Ben Ober-Reynolds
 """
 
 
-
 import os
 import sys
 import argparse
 import time
 from Bio import SeqIO
 import pandas as pd
-
 # Force matplotlib to use a non-interactive backend
 import matplotlib
 matplotlib.use('Agg')
 # This will prevent it from trying to show plots during code execution
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-def main():
-    ################ Parse input parameters ################
 
-    #set up command line argument parser
-    parser = argparse.ArgumentParser(description='script for isolating specific \
-        clusters from fastq files')
+def main():
+    # set up command line argument parser
+    parser = argparse.ArgumentParser(description='Characterize fasta files by \
+        base composition and sequence length distribution')
     group = parser.add_argument_group('required arguments:')
     group.add_argument('-fa', '--fasta_files', required=True, nargs='+',
-                        help='file containing list of clusters to select')
+        help='file containing list of clusters to select')
     group = parser.add_argument_group('optional arguments')
-    group.add_argument('-fd','--fasta_descriptors', nargs='+',
-                        help='The descriptors to use for each fasta file. \
-                        (If you provide any descriptors, you must provide as \
-                            many descriptors as files. If you provide none, \
-                            it will use the original fasta filename.)')
-    group.add_argument('-od','--output_directory', default=".",
-                        help='output directory for filtered fastq files \
-                        (default is current directory)')
-    group.add_argument('-op','--output_prefix',
-                        help='output prefix for fasta plots \
-                        (default is fasta file prefix)')
+    group.add_argument('-fd', '--fasta_descriptors', nargs='+', 
+        help='The descriptors to use for each fasta file. (If you provide any \
+            descriptors, you must provide as many descriptors as files. If you \
+            provide none, it will use the original fasta filename.)')
+    group.add_argument('-od', '--output_directory', default=".",
+        help='output directory for filtered fastq files (default is current \
+            directory)')
+    group.add_argument('-op', '--output_prefix', default='characterize',
+        help='output prefix for fasta plots (default is "characterize")')
 
     # print help if no arguments provided
     if len(sys.argv) <= 1:
@@ -86,7 +80,6 @@ def main():
     file_format = 'png'
     sns.set_style('white')
     
-
     # set output directory:
     output_dir = args.output_directory.strip('/')
     if not os.path.isdir(output_dir):
@@ -176,8 +169,8 @@ def plot_base_compositions(base_comp_dict, plot_order, color_scheme, title,
     base_comp_melt = pd.melt(base_comp_df, id_vars='index')
 
     # Set order for plotting:
-    base_comp_melt.loc[:,'variable'] = pd.Categorical(base_comp_melt.loc[:,'variable'], 
-            categories=plot_order)
+    base_comp_melt.loc[:,'variable'] = pd.Categorical(
+        base_comp_melt.loc[:,'variable'], categories=plot_order)
     
     # Now plot:
     ax = sns.barplot(data=base_comp_melt, x='index', y='value', hue='variable', 
@@ -219,8 +212,8 @@ def plot_seq_distributions(seq_len_dict, plot_order, length_col_header,
 
     # Set order for plotting:
     seq_length_df.loc[:,fasta_col_header] = pd.Categorical(
-        seq_length_df.loc[:,fasta_col_header], categories=plot_order)
-    
+        seq_length_df.loc[:, fasta_col_header], categories=plot_order)
+
     # Now plot:
     g = sns.FacetGrid(seq_length_df, col=fasta_col_header, hue=fasta_col_header, 
         sharex=True, xlim=[xmin, xmax], palette=pal, col_wrap=col_num)
@@ -237,9 +230,6 @@ def plot_seq_distributions(seq_len_dict, plot_order, length_col_header,
     print("Saving seq length distribution plot to {}...".format(output_filepath))
     plt.savefig(output_filepath, dpi=resolution, format=file_format)
     plt.close()
-
-
-
 
 
 if __name__ == '__main__':

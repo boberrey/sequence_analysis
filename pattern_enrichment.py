@@ -14,7 +14,6 @@ Ben Ober-Reynolds
 """
 
 
-
 import os
 import sys
 import re
@@ -26,50 +25,48 @@ import pickle
 from Bio import SeqIO
 from joblib import Parallel, delayed
 
-def main():
-    ################ Parse input parameters ################
 
-    #set up command line argument parser
-    parser = argparse.ArgumentParser(description='script for isolating specific \
-        clusters from fastq files')
+def main():
+
+    # set up command line argument parser
+    parser = argparse.ArgumentParser(description='Calculate motif densities \
+        for a target and a background set of fastas.')
     group = parser.add_argument_group('required arguments:')
     group.add_argument('-fi', '--fasta_of_interest', required=True,
-                        help='file containing clusters of interest')
+        help='file containing clusters of interest')
     group.add_argument('-fb', '--background_fasta', required=True,
-                        help='file containing background clusters')
+        help='file containing background clusters')
     group.add_argument('-pf', '--pattern_file', required=True,
-                        help='file containing patterns to check for. Format: \
-                        {pattern name}\\t{regex_pattern}')
+        help='file containing patterns to check for. Format: \
+        {pattern name}\\t{regex_pattern}')
     group = parser.add_argument_group('optional arguments')
-    group.add_argument('-od','--output_directory', default=".",
-                        help='output directory for statistics file and figures. \
-                        Default is current directory')
-    group.add_argument('-op','--output_prefix', default="enrichment",
-                        help='output prefix for results file and figures')
-    group.add_argument('-isn','--interesting_seq_name', 
+    group.add_argument('-od', '--output_directory', default=".",
+        help='output directory for statistics file and figures. \
+        Default is current directory')
+    group.add_argument('-op', '--output_prefix', default="enrichment",
+        help='output prefix for results file and figures')
+    group.add_argument('-isn', '--interesting_seq_name', 
         default="Sequences of Interest",
-                        help='The name of the sequence of interest pool. \
-                        Default is "Sequences of Interest"')
-    group.add_argument('-bsn','--background_seq_name', 
-        default="Background Sequences",
-                        help='The name of the background sequence pool. \
-                        Default is "Background Sequences"')
-    group.add_argument('-rc','--reverse_comp', default="y",
-                        help='also calculate enrichment in reverse complement \
-                        of each pool [y/n]? Default is y.')
-    group.add_argument('-nb','--num_bootstraps', type=int, default=1000,
-                        help='number of times to resample pools for enrichment \
-                        calculation. Default is 1000.')
-    group.add_argument('-n','--num_cores', type=int, default=1,
-                        help='number of cores to use for bootstrapping.')
-
+        help='The name of the sequence of interest pool. Default is \
+        "Sequences of Interest"')
+    group.add_argument('-bsn', '--background_seq_name', 
+        default="Background Sequences", help='The name of the background \
+        sequence pool. Default is "Background Sequences"')
+    group.add_argument('-rc', '--reverse_comp', default="y",
+        help='also calculate enrichment in reverse complement of each pool \
+        [y/n]? Default is y.')
+    group.add_argument('-nb', '--num_bootstraps', type=int, default=1000,
+        help='number of times to resample pools for enrichment calculation. \
+        Default is 1000.')
+    group.add_argument('-n', '--num_cores', type=int, default=1,
+        help='number of cores to use for bootstrapping.')
 
     # print help if no arguments provided
     if len(sys.argv) <= 1:
         parser.print_help()
         sys.exit()
 
-    #parse command line arguments
+    # parse command line arguments
     args = parser.parse_args()
     numCores = args.num_cores
 
@@ -83,9 +80,7 @@ def main():
     if not os.path.isdir(output_dir):
         print("Error: invalid output directory. Exiting...")
         sys.exit()
-
-    # Now run the actual script:
-
+    
     # Read in files:
     seqs_of_interest = read_fasta(args.fasta_of_interest, input_file_format)
     background_seqs = read_fasta(args.background_fasta, input_file_format)
@@ -114,14 +109,14 @@ def main():
 
     # calculate motif density for each pattern
     if numCores > 1:
-        with Parallel(n_jobs = numCores, verbose = 10) as parallel: 
+        with Parallel(n_jobs=numCores, verbose=10) as parallel: 
             for pname in pattern_dict.keys():
                 for pool_name in seq_pool_dict.keys():
                     densities = []
                     print("Calculating density of pattern '{}' in pool '{}'\
                         ".format(pname, pool_name))
                     densities = parallel(delayed(calc_resampled_motif_density)\
-                        (seq_pool_dict[pool_name], pool_size, pattern_dict[pname])\
+                        (seq_pool_dict[pool_name], pool_size, pattern_dict[pname])
                     for i in range(args.num_bootstraps))
                     density_result_dict[pname][pool_name] = densities
     else:
@@ -131,7 +126,7 @@ def main():
                 print("Calculating density of pattern '{}' in pool '{}'\
                     ".format(pname, pool_name))
                 densities = [calc_resampled_motif_density(
-                    seq_pool_dict[pool_name], pool_size, pattern_dict[pname])\
+                    seq_pool_dict[pool_name], pool_size, pattern_dict[pname])
                     for i in range(args.num_bootstraps)]
                 density_result_dict[pname][pool_name] = densities
 
@@ -196,7 +191,6 @@ def calc_resampled_motif_density(seq_array, samp_size, regex):
         patterns_found += len(re.findall(regex, seq))
         total_seq_space += len(seq)
     return patterns_found/total_seq_space
-
 
 
 if __name__ == '__main__':

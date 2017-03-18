@@ -3,7 +3,10 @@
 
 ### bash script for getting strand-maintained fasta files from paired end reads.
 ### Use like so:
+
 # ./get_stranded_fastas.sh r1.fastq r2.fastq adapters.fa ref_genome output_prefix
+
+# Ben Ober-Reynolds
 
 # input files and variables
 r1=$1
@@ -44,7 +47,6 @@ echo "Trimming adapters with skewer..."
 echo ""
 
 skewer -y $adapters -o $output_name -m pe $1 $2
-
 
 # align
 echo ""
