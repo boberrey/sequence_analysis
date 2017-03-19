@@ -74,6 +74,7 @@ def main():
     input_file_format = 'fasta'
     rev_c_tag = "Rev-Comp"
     output_prefix = time.strftime("%Y%m%d") + "_" + args.output_prefix
+    pickle_file_ext = "p"
 
     # Do some error checking before running this long script:
     output_dir = args.output_directory
@@ -131,7 +132,7 @@ def main():
                 density_result_dict[pname][pool_name] = densities
 
     # Dump results to pickle for latter replotting
-    with open(output_dir + '/' + output_prefix + '.p', 'wb') as f:
+    with open(output_dir + '/' + output_prefix + '.' + pickle_file_ext, 'wb') as f:
         pickle.dump(density_result_dict, f)
 
 
