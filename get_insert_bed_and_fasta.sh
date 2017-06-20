@@ -4,15 +4,15 @@
 ### bash script for getting insert sequence fasta files from name-sorted bam file.
 ### Use like so:
 
-# ./get_insert_fastas.sh bam_file.bam ref_genome output_dir output_prefix 
+# ./get_insert_bed_and_fasta.sh bam_file.bam ref_genome output_dir output_prefix 
 
 # Ben Ober-Reynolds
 
 # Check that the proper number of parameters were given
 if [ "$#" -ne 4 ]; then
-	echo "	bash script for getting insert sequence fasta files from a name-sorted bam file."
+	echo "	bash script for getting insert bed and insert fasta files from a name-sorted bam file."
 	echo "	Use like so:"
-	echo "	get_insert_fastas.sh bam_file.bam ref_genome output_dir output_prefix"
+	echo "	get_insert_bed_and_fasta.sh bam_file.bam ref_genome output_dir output_prefix"
 	exit
 fi
 
@@ -41,9 +41,9 @@ name="\$7"
 score="\$8"
 r1_strand="\$9"
 
-# generate paired-end bedfile:
+# generate mate1-maintained paired-end bedfile:
 
-bedtools bamtobed -bedpe -i $bam_file > $bedpe_file 2> $error_log
+bedtools bamtobed -mate1 -bedpe -i $bam_file > $bedpe_file 2> $error_log
 
 
 # "clean-up" bedpe file by removing any unmapped pairs
@@ -62,7 +62,6 @@ make_insert_cmd="BEGIN{OFS = \"\t\"}{
 awk "$make_insert_cmd" < $cleaned_bedpe > $insert_bed_file
 rm $cleaned_bedpe $error_log
 
-# Now get fasta from insert bed file:
+# Now get 'strand forced' fasta from insert bed file:
 
-bedtools getfasta -fi $genome_fasta -bed $insert_bed_file -fo $fasta_output
-rm $insert_bed_file
+bedtools getfasta -fi $genome_fasta -bed $insert_bed_file -fo $fasta_output -name -s
