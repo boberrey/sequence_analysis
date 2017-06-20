@@ -18,12 +18,15 @@ import sys
 import time
 import argparse
 import pandas as pd
+import numpy as np
 # Force matplotlib to use a non-interactive backend
 import matplotlib
 matplotlib.use('Agg')
 # This will prevent it from trying to show plots during code execution
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import seaborn as sns
+from collections import OrderedDict
 
 
 def main():
@@ -57,7 +60,8 @@ def main():
     args = parser.parse_args()
 
     # Pre-defined variables, constants, and settings
-    color_scheme = ['r', 'b', 'lightcoral', 'lightskyblue']
+    # color_scheme = ['r', 'b', 'lightcoral', 'lightskyblue']
+    # color_scheme = ['teal', 'm', 'c', 'palevioletred'] 
     col_num_lim = 3
     pattern_col_header = 'pattern'
     plot_ylabel = 'normalized enrichment'
@@ -90,6 +94,11 @@ def main():
     
     # Read in results file:
     density_results_dict = pd.read_pickle(args.densities_dict)
+
+    # get the required number of colors:
+    pool_number = max([len(x) for x in [y.keys() 
+        for y in density_results_dict.values()]])
+    color_scheme = cm.Set2(np.arange(pool_number)/float(pool_number))
 
     # generate plot:
     plot_facet_boxplots(pattern_list, density_results_dict, pool_order, 

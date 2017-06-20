@@ -20,11 +20,13 @@ import argparse
 import time
 from Bio import SeqIO
 import pandas as pd
+import numpy as np
 # Force matplotlib to use a non-interactive backend
 import matplotlib
 matplotlib.use('Agg')
 # This will prevent it from trying to show plots during code execution
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import seaborn as sns
 
 
@@ -34,7 +36,7 @@ def main():
         base composition and sequence length distribution')
     group = parser.add_argument_group('required arguments:')
     group.add_argument('-fa', '--fasta_files', required=True, nargs='+',
-        help='file containing list of clusters to select')
+        help='one or more fasta files to characterize')
     group = parser.add_argument_group('optional arguments')
     group.add_argument('-fd', '--fasta_descriptors', nargs='+', 
         help='The descriptors to use for each fasta file. (If you provide any \
@@ -56,7 +58,9 @@ def main():
 
     # Pre-defined variables, constants, and settings
     input_file_format = 'fasta'
-    color_scheme = ['r', 'b', 'lightcoral', 'lightskyblue']
+    ngroups = len(args.fasta_files)
+    color_scheme = cm.Set2(np.arange(ngroups)/float(ngroups))
+    #color_scheme = ['r', 'b', 'lightcoral', 'lightskyblue']
 
     base_comp_ymax = 0.4
     base_comp_title = 'Base Composition'
@@ -68,7 +72,7 @@ def main():
     seq_len_title = 'Insert Length Distribution'
     seq_len_ylabel = ''
     seq_len_xlabel = 'insert length'
-    max_plot_col = 2
+    max_plot_col = 4
     seq_xmin, seq_xmax = [-100, 1200]
 
     output_prefix_base_comp = time.strftime("%Y%m%d") + "_" + \

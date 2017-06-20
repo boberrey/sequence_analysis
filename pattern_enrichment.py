@@ -22,6 +22,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import pickle
+from collections import OrderedDict
 from Bio import SeqIO
 from joblib import Parallel, delayed
 
@@ -32,10 +33,8 @@ def main():
     parser = argparse.ArgumentParser(description='Calculate motif densities \
         for a target and a background set of fastas.')
     group = parser.add_argument_group('required arguments:')
-    group.add_argument('-fi', '--fasta_of_interest', required=True,
-        help='file containing clusters of interest')
-    group.add_argument('-fb', '--background_fasta', required=True,
-        help='file containing background clusters')
+    group.add_argument('-fa', '--fasta_files', required=True, nargs='+',
+        help='fasta files to be used for analysis')
     group.add_argument('-pf', '--pattern_file', required=True,
         help='file containing patterns to check for. Format: \
         {pattern name}\\t{regex_pattern}')
@@ -45,13 +44,10 @@ def main():
         Default is current directory')
     group.add_argument('-op', '--output_prefix', default="enrichment",
         help='output prefix for results file and figures')
-    group.add_argument('-isn', '--interesting_seq_name', 
-        default="Sequences of Interest",
-        help='The name of the sequence of interest pool. Default is \
-        "Sequences of Interest"')
-    group.add_argument('-bsn', '--background_seq_name', 
-        default="Background Sequences", help='The name of the background \
-        sequence pool. Default is "Background Sequences"')
+    group.add_argument('-fd', '--fasta_descriptors', nargs='+', 
+        help='The descriptors to use for each fasta file. (If you provide any \
+            descriptors, you must provide as many descriptors as files. If you \
+            provide none, it will use the original fasta filename.)')
     group.add_argument('-rc', '--reverse_comp', default="y",
         help='also calculate enrichment in reverse complement of each pool \
         [y/n]? Default is y.')
@@ -74,6 +70,7 @@ def main():
     input_file_format = 'fasta'
     rev_c_tag = "Rev-Comp"
     output_prefix = time.strftime("%Y%m%d") + "_" + args.output_prefix
+    max_resample_size = 100000
 
     # Do some error checking before running this long script:
     output_dir = args.output_directory
@@ -82,30 +79,39 @@ def main():
         sys.exit()
     
     # Read in files:
-    seqs_of_interest = read_fasta(args.fasta_of_interest, input_file_format)
-    background_seqs = read_fasta(args.background_fasta, input_file_format)
+    # Get the fasta names
+    fasta_names = []
+    for i in range(len(args.fasta_files)):
+        fasta_file = args.fasta_files[i]
+        if args.fasta_descriptors:
+            fasta_name = args.fasta_descriptors[i]
+        else:
+            fasta_name = os.path.splitext(os.path.basename(fasta_file))[0]
+        fasta_names.append(fasta_name)
+
+    # seq pool dict:
+    seq_pool_dict = OrderedDict()
+    for i in range(len(fasta_names)):
+        fasta_file = args.fasta_files[i]
+        fasta_name = fasta_names[i]
+        print("Reading in seq pool for {}".format(fasta_name))
+        seq_pool_dict[fasta_name] = read_fasta(fasta_file, input_file_format)
     pattern_dict = read_pattern_file(args.pattern_file)
 
     # Find smallest pool size:
-    pool_size = min([len(seqs_of_interest), len(background_seqs)])
-
-    # seq pool dict:
-    seq_pool_dict = {args.interesting_seq_name: seqs_of_interest, 
-    args.background_seq_name: background_seqs}
+    pool_size = min([len(x) for x in seq_pool_dict.values()])
+    pool_size = min([pool_size, max_resample_size])
 
     # Results dictionary:
-    density_result_dict = {}
+    density_result_dict = OrderedDict()
     for pname in pattern_dict.keys():
-        density_result_dict[pname] = {}
+        density_result_dict[pname] = OrderedDict()
 
     # compare to reverse complement?
     if args.reverse_comp == 'y':
-        interesting_seq_rc_name = args.interesting_seq_name + " " + rev_c_tag
-        background_seq_rc_name = args.background_seq_name + " " + rev_c_tag
-        rc_seqs_of_interest = reverse_comp(seqs_of_interest)
-        rc_background_seqs = reverse_comp(background_seqs)
-        seq_pool_dict[interesting_seq_rc_name] = rc_seqs_of_interest
-        seq_pool_dict[background_seq_rc_name] = rc_background_seqs
+        for pool_name, seq_pool in seq_pool_dict.items():
+            rev_comp_name = pool_name + " " + rev_c_tag
+            seq_pool_dict[rev_comp_name] = reverse_comp(seq_pool)
 
     # calculate motif density for each pattern
     if numCores > 1:
@@ -155,7 +161,7 @@ def read_pattern_file(filename):
     tab-delimited files with the first column being the pattern name, and
     the second column the regular expression defining that pattern.
     """
-    pattern_dict = {}
+    pattern_dict = OrderedDict()
     with open(filename, 'r') as f:
         for line in f:
             pname, reg_exp = line.strip().split('\t')
