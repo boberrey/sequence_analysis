@@ -62,8 +62,8 @@ def main():
     r2_identifier = '_R2_'
     alignment_script = 'trim_and_align_array.sh'
     get_insert_script = 'get_insert_bed_and_fasta.sh'
-    alignment_log_file = "alignment.log"
-    insert_log_file = "inserts.log"
+    alignment_log_file = "_alignment.log"
+    insert_log_file = "_inserts.log"
     bytestring_encoding = "UTF-8"
 
     # Check input directory
@@ -85,9 +85,6 @@ def main():
         sys.exit()
     # ensure correct formatting of output_dir
     output_dir = output_dir.strip('/') + '/'
-
-    # update logfile path:
-    log_file = output_dir + log_file 
     
     # Gather fastq files:
     print("Finding fastq files in directory {}".format(fastq_dir))
@@ -104,7 +101,8 @@ def main():
             r2_fastqs.append(fastq_file)
 
     # get paired fastq files:
-    paired_fastq_dict = get_paired_fastq_dict(r1_fastqs, r2_fastqs, r1_identifier)
+    paired_fastq_dict = get_paired_fastq_dict(r1_fastqs, r2_fastqs, r1_identifier, r2_identifier)
+    print(paired_fastq_dict)
 
     # Report found files:
     print("Found fastq file pairs: ")
@@ -114,6 +112,7 @@ def main():
     # Run alignment script for each pair:
     print("Running alignment script: {}".format(alignment_script))
     for prefix, file_list in paired_fastq_dict.items():
+        
         r1_fastq, r2_fastq = file_list
         print("Trimming and aligning {} and {}...".format(r1_fastq, r2_fastq))
         # alignment script:
@@ -125,7 +124,9 @@ def main():
         # Convert bytestring to writable string:
         log = log.decode(bytestring_encoding)
         # save stdout information as logfile:
-        with open(alignment_log_file, 'a') as f:
+        current_log_file = output_dir + prefix + alignment_log_file
+
+        with open(current_log_file, 'a') as f:
             f.write("Log for {}:\n".format(prefix))
             f.write(log)
     
@@ -139,7 +140,7 @@ def main():
     # Get all the bam files that were generated in the previous step:
     bam_list = []
     for prefix, file_list in paired_fastq_dict.items():
-        bam_list.append(output_directory + prefix + '.' + bam_extension)
+        bam_list.append(output_dir + prefix + '.' + bam_extension)
 
 
     for bam_file in bam_list:
@@ -148,13 +149,15 @@ def main():
         # get_insert_bed_and_fasta.sh bam_file.bam ref_genome output_dir output_prefix 
         # subprocess.check_output returns stdout as a string
         output_prefix = os.path.splitext(os.path.basename(bam_file))[0]
-        log = subprocess.check_output([get_fasta_script, bam_file, ref_genome, 
+        log = subprocess.check_output([get_insert_script, bam_file, ref_genome, 
             output_dir, output_prefix])
 
         # Convert bytestring to writable string:
         log = log.decode(bytestring_encoding)
         # save stdout information as logfile:
-        with open(insert_log_file, 'a') as f:
+        current_log_file = output_dir + output_prefix + insert_log_file
+
+        with open(current_log_file, 'a') as f:
             f.write("Log for {}:\n".format(output_prefix))
             f.write(log)
 
@@ -163,7 +166,7 @@ def main():
 
 
 
-def get_paired_fastq_dict(r1_fastqs, r2_fastqs, r1_identifier):
+def get_paired_fastq_dict(r1_fastqs, r2_fastqs, r1_identifier, r2_identifier):
     """
     Generate a dictionary of paired fastq files, keyed by their common prefix.
     Inputs:
@@ -179,7 +182,7 @@ def get_paired_fastq_dict(r1_fastqs, r2_fastqs, r1_identifier):
         prefix = os.path.basename(r1_fastq.split(r1_identifier)[0])
         r2_fastq = ""
         for r2_file in r2_fastqs:
-            if prefix in r2_file:
+            if prefix == os.path.basename(r2_file.split(r2_identifier)[0]):
                 r2_fastq = r2_file
         paired_fastq_dict[prefix] = [r1_fastq, r2_fastq]
     return paired_fastq_dict

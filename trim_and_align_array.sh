@@ -60,6 +60,8 @@ echo "Aligning with bowtie2..."
 echo ""
 
 # Redirect bowtie2 metrics (normally stderr) to stdout for better wrapper script handling:
+# Note: It seems that the mapping insert size restriction option (-X n) doesn't work.
+# Take appropriate downstream filtering steps as necessary.
 bowtie2 -X $max_insert_size -p $n_cores $ref_genome -1 $tr1 -2 $tr2 -S $sam_file 2>&1
 samtools view -b -S -o $unsorted_bam_file $sam_file 2>&1
 
