@@ -77,12 +77,12 @@ make_insert_cmd="BEGIN{OFS = \"\t\"}{
 }"
 
 awk "$make_insert_cmd" < $cleaned_bedpe > $insert_bed_file
-rm $cleaned_bedpe $error_log
+rm $cleaned_bedpe
 
 # Trim insert bed file to remove overly long or low quality inserts
 remove_long_cmd="BEGIN{OFS = \"\t\"}{
-	if($i_stop - $i_strt < $max_len && $i_score > $quality_cutoff){
-		print $0
+	if($i_stop - $i_strt <= $max_len && $i_score >= $quality_cutoff){
+		print $i_chr, $i_strt, $i_stop, $i_name, $i_score, $i_strand
 	}
 }"
 
@@ -95,5 +95,5 @@ sort -k 1,1 -k2,2n -k3,3n $trimmed_bed_file > $sorted_bed_file
 rm $trimmed_bed_file
 
 # Now get 'strand forced' fasta from insert bed file:
-bedtools getfasta -fi $genome_fasta -bed $trimmed_bed_file -fo $fasta_output -name -s
+bedtools getfasta -fi $genome_fasta -bed $sorted_bed_file -fo $fasta_output -name -s
 

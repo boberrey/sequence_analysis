@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Trim and align a directory of fastqs for an array library.
-Will output an 'insert bed file', and an 'insert fasta file'
+Trim and align a directory of fastqs from a cleave and seq experiment
+Will output a strand maintained 'insert bed file'.
 
 Inputs:
    directory containing fastqs
@@ -11,10 +11,10 @@ Inputs:
 
 Outputs:
     'insert bed file'
-    'insert fasta file'
 
 Other required scripts:
-    trim_and_align_array.sh
+    trim_and_align.sh
+    get_insert_bed.sh
 
 
 Ben Ober-Reynolds
@@ -38,7 +38,9 @@ def main():
     group = parser.add_argument_group('required arguments:')
     group.add_argument('-fd', '--fastq_directory', required=True,
         help='directory containing fastq files')
-    group.add_argument('-a', '--adapter_file', required=True,
+    group.add_argument('-a1', '--adapter_file1', required=True,
+        help='file containing adapters for trimming')
+    group.add_argument('-a2', '--adapter_file2', required=True,
         help='file containing adapters for trimming')
     group.add_argument('-g', '--ref_genome', required=True,
         help='reference genome for bowtie2')
@@ -60,8 +62,8 @@ def main():
     bam_extension = 'bam'
     r1_identifier = '_R1_'
     r2_identifier = '_R2_'
-    alignment_script = 'trim_and_align_array.sh'
-    get_insert_script = 'get_insert_bed_and_fasta.sh'
+    alignment_script = 'trim_and_align_pe.sh'
+    get_insert_script = 'get_insert_bed.sh'
     alignment_log_file = "_alignment.log"
     insert_log_file = "_inserts.log"
     bytestring_encoding = "UTF-8"
@@ -73,7 +75,8 @@ def main():
         sys.exit()
 
     # Other required arguments:
-    adapter_file = args.adapter_file
+    adapter_file1 = args.adapter_file1
+    adapter_file2 = args.adapter_file2
     ref_genome = args.ref_genome
 
     # If no output directory given, use input directory
@@ -118,7 +121,7 @@ def main():
         # trim_and_align.sh r1.fastq r2.fastq adapters.fa ref_genome output_dir output_prefix
         # subprocess.check_output returns stdout as a string
         log = subprocess.check_output([alignment_script, r1_fastq, r2_fastq, 
-            adapter_file, ref_genome, output_dir, prefix])
+            adapter_file1, adapter_file2, ref_genome, output_dir, prefix])
 
         # Convert bytestring to writable string:
         log = log.decode(bytestring_encoding)
@@ -143,12 +146,12 @@ def main():
 
 
     for bam_file in bam_list:
-        print("Getting insert bed and fasta for {}...".format(bam_file))
+        print("Getting insert bed for {}...".format(bam_file))
         # insert script:
-        # get_insert_bed_and_fasta.sh bam_file.bam ref_genome output_dir output_prefix 
+        # get_insert_bed.sh bam_file.bam output_dir output_prefix 
         # subprocess.check_output returns stdout as a string
         output_prefix = os.path.splitext(os.path.basename(bam_file))[0]
-        log = subprocess.check_output([get_insert_script, bam_file, ref_genome, 
+        log = subprocess.check_output([get_insert_script, bam_file, 
             output_dir, output_prefix])
 
         # Convert bytestring to writable string:
