@@ -6,8 +6,9 @@ import glob
 
 # Input data
 
-FASTQ_DIR = '/raid1/lab/ben/ATAC_playground/Fastqs'
-METADATA_FILE = '/raid1/lab/ben/ATAC_playground/Fastqs/metadata.txt'
+FASTQ_DIR = sys.argv[1]
+METADATA_FILE = FASTQ_DIR + FASTQ_DIR.split('/')[-1] + "_metadata.txt"
+print(METADATA_FILE)
 BEDS = {"TSS" : '/shr/Downloaded_data/hg19_data/RefSeq_genes/parsed_hg19_RefSeq.merged.ANS.bed'}
 NARROWPEAKS = {}
 BROADPEAKS = {}
@@ -55,4 +56,6 @@ def make_meta(filename):
             if len(sample_label) > 30:
                 sample_label = sample_label[:20] + "..." + sample_label[-10:]
             outfile.write("\t".join([sample_label, r1_file, r2_file]) + "\n")
+
+make_meta(METADATA_FILE)
 
