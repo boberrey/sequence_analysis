@@ -6,7 +6,15 @@ import json
 
 include: "skinny_snakeATAC_config.py"
 
-if not os.path.exists(METADATA_FILE): make_meta(METADATA_FILE)
+"""
+This needs some work. It seems like it's going to be a big pain to parallelize this in the way 
+I'm used to on sherlock, so maybe I should try to be smarter about this... 
+For now, just use the traditional parallelization.
+"""
+
+if not os.path.exists(METADATA_FILE): 
+    METADATA_FILE = make_meta(FASTQ_DIR)
+    print(METADATA_FILE)
 
 if EXE_DIR not in sys.path: os.environ["PATH"] = EXE_DIR + os.pathsep + os.environ["PATH"]
 
@@ -28,20 +36,20 @@ rule all:
         expand("output/plots/{bed_data}/{sample_label}.{bed_data}.insertion_profile.png",bed_data = BEDS.keys(), sample_label = sample_labels),
         expand("output/plots/{bed_data}/{sample_label}.{bed_data}.Vplot.eps", bed_data = BEDS.keys(), sample_label = sample_labels),
         #"output/coverage_data/qc/multiBamSummary_out_readCounts.tab",
-        "output/plots/qc/sample_correlation_plot.pdf",
+        #"output/plots/qc/sample_correlation_plot.pdf",
         "output/bams/qc/compiled_flagstats.txt",
         "output/bams/qc/compiled_counts.txt",
         "output/plots/qc/compiled_idxstats.mito.pdf",
         "output/bams/qc/compiled_picard.dedup_metrics.txt",
-        expand("output/fastqs/qc/{sample_label}_R1_untrimmed_fastqc.html", sample_label = sample_labels),
-        expand("output/fastqs/qc/{sample_label}_R1_trimmed_fastqc.html", sample_label = sample_labels),
+        #expand("output/fastqs/qc/{sample_label}_R1_untrimmed_fastqc.html", sample_label = sample_labels),
+        #expand("output/fastqs/qc/{sample_label}_R1_trimmed_fastqc.html", sample_label = sample_labels),
         expand("output/plots/{bed_data}/{sample_label}.{bed_data}.insertion_heat.pdf", sample_label = sample_labels, bed_data = BEDS.keys()),
         expand("output/plots/{bed_data}/compiled_{bed_data}_enrichments.pdf",bed_data = BEDS.keys()),
         expand("output/plots/{narrow_data}/compiled_{narrow_data}_enrichments.pdf",narrow_data = NARROWPEAKS.keys()),
         expand("output/plots/{broad_data}/compiled_{broad_data}_enrichments.pdf",broad_data = BROADPEAKS.keys()),
         #expand("output/bams/qc/complexity/{sample_label}.extrapolated_yield.txt", sample_label = sample_labels),
-        expand("output/fastqs/qc/{sample_label}_R1_trimmed_screen.html", sample_label = sample_labels),
-        "output/plots/cqn/pca.pdf",
+        #expand("output/fastqs/qc/{sample_label}_R1_trimmed_screen.html", sample_label = sample_labels),
+        #"output/plots/cqn/pca.pdf",
     output:
         "skinnySnakeATAC.txt"
     shell:
@@ -64,12 +72,12 @@ rule trim_adapters_skewer:
     params:
         error_out_file = "error_files/{sample_label}_trim",
         run_time="2:30:00",
-        cores="8",
+        cores=TRIMMING_THREADS,
         memory="6000",
         job_name="trimming"
     benchmark: 
         "benchmarks/trimming/{sample_label}.txt"
-    threads: 8
+    threads: TRIMMING_THREADS
     shell:
         "cat {input.left} > {output.temp_left_cat};" # if there are multiple files to be combined
         "cat {input.right} > {output.temp_right_cat};"
@@ -88,12 +96,12 @@ rule trim_adapters_seqpurge:
     params:
         error_out_file = "error_files/{sample_label}_trim",
         run_time="2:30:00",
-        cores="8",
+        cores=TRIMMING_THREADS,
         memory="6000",
         job_name="trimming"
     benchmark: 
         "benchmarks/trimming/{sample_label}.txt"
-    threads: 8
+    threads: TRIMMING_THREADS
     shell:
         "SeqPurge -a1 CTGTCTCTTATACACATCTCCGAGCCCACGAGAC -a2 CTGTCTCTTATACACATCTGACGCTGCCGACGA -threads {threads} -out1 {output.left} -out2 {output.right} -in1 {input.left} -in2 {input.right}"
 
@@ -117,6 +125,8 @@ rule trim_adapters_cutadapt:
 
 ruleorder: trim_adapters_seqpurge > trim_adapters_skewer > trim_adapters_cutadapt
 
+# Skip fastqc for now (20170823 Ben)
+"""
 rule fastqc_unmapped_trimmed:
     input:
         left = "output/fastqs/trimmed/{sample_label}_R1_trimmed.fastq.gz",
@@ -200,6 +210,7 @@ rule fastqscreen_trimmed:
         "benchmarks/fastq_screen/{sample_label}_fastq_screen.txt"
     shell:
         "fastq_screen --subset 500000 --outdir output/fastqs/qc/ --threads {threads} --conf {input.conf} --bowtie2 '-X 2000 --no-mixed --no-discordant' --aligner bowtie2 {input.left} {input.right}"
+"""
 
 rule run_bowtie:
     input:
@@ -212,11 +223,11 @@ rule run_bowtie:
     params:
         error_out_file = "error_files/{sample_label}_bowtie",
         run_time = "4:59:00",
-        cores = "8",
+        cores = ALIGNING_THREADS,
         memory = "8000",
         job_name = "bwt2"
     benchmark: "benchmarks/bowtie/{sample_label}.txt"
-    threads: 8
+    threads: ALIGNING_THREADS
     shell: # -X 2000 # prevents mates separated by a lot 
         "bowtie2 -X 2000 --threads {threads} --rg-id {wildcards.sample_label} --rg 'SM:{wildcards.sample_label}' -x " + REFERENCE_FILE + " -1 {input.left} -2 {input.right} | samtools view -b -S - | samtools sort -o output/bams/unprocessed/{wildcards.sample_label}.bam -; "
         "samtools index output/bams/unprocessed/{wildcards.sample_label}.bam; "
@@ -371,7 +382,7 @@ rule rm_duplicates_picard:
     benchmark: "benchmarks/picard_MarkDuplicates/{sample_label}.txt"
     threads: 1
     shell: # -Xms4g # this seems to get the process killed... # WE CAN INCLUDE READ_NAME INFO if we have illumina reads...
-        "java -jar -XX:ParallelGCThreads={JAVA_GC_CORES} {PICARD_JAR} MarkDuplicates INPUT={input.bam} OUTPUT={output.bam} METRICS_FILE={output.raw_metrics} REMOVE_DUPLICATES=true VALIDATION_STRINGENCY=LENIENT READ_NAME_REGEX=null; "
+        "java -jar -XX:ParallelGCThreads=" + str(JAVA_GC_CORES) + "{PICARD_JAR} MarkDuplicates INPUT={input.bam} OUTPUT={output.bam} METRICS_FILE={output.raw_metrics} REMOVE_DUPLICATES=true VALIDATION_STRINGENCY=LENIENT READ_NAME_REGEX=null; "
         "samtools index {output.bam}; " # and index
         "grep -A 1 ESTIMATED_LIBRARY_SIZE {output.raw_metrics} | tail -1 | cut -f 9-10 | xargs echo {wildcards.sample_label} | tr ' ' $'\t' > {output.parsed_metrics};"
 
@@ -395,7 +406,13 @@ rule count_bam_reads:
         "f=$(samtools flagstat output/bams/filtered/{wildcards.sample_label}.noMT.filtered.bam | head -1 | cut -f 1 -d ' ');"
         "d=$(samtools flagstat output/bams/deduped/{wildcards.sample_label}.noMT.filtered.deduped.bam | head -1 | cut -f 1 -d ' ');"
         "echo {wildcards.sample_label} $'\t' $u $'\t' $M $'\t' $f $'\t' $d > output/bams/qc/counts/{wildcards.sample_label}.counts.txt"
+        # Get rid of intermediate bams?
+        #"rm output/bams/unprocessed/{wildcards.sample_label}.bam"
+        #"rm output/bams/noMT/{wildcards.sample_label}.noMT.bam"
+        #"rm output/bams/filtered/{wildcards.sample_label}.noMT.filtered.bam"
 
+# Don't do anything that requires multiple libraries (20170823 Ben)
+"""
 rule merge_bam_files:
     input:
         expand("bams/deduped/{sample_label}.noMT.filtered.deduped.bam", sample_label=sample_labels)
@@ -416,6 +433,7 @@ rule merge_bam_files:
 
 #awk 'BEGIN {command = "paste "} FILENAME != previous {command = command  "<(cut -f " NF " FILENAME ")"; previous=FILENAME }' output/beds/{sample_label}.insertions.bed.gz
 #ls output/beds/WT-3h_S14_L001.insertions.bed.gz output/beds/Mz-3h_S10_L001.insertions.bed.gz output/beds/Kz-3h_S8_L001.insertions.bed.gz  | while read line; do echo -n "<(cut -f 11 " $line ") "; done
+"""
 rule plot_duplicate_stats:
     input:
         expand("output/picard/duplicates/parsed/picard_dedup_metrics_{sample_label}.parsed.txt", sample_label=sample_labels)
@@ -433,7 +451,7 @@ rule plot_duplicate_stats:
         "awk 'BEGIN{{OFS=\"\\t\";print \"sample_label\",\"percent_duplication\",\"estimated_library_size\"}} {{print}}' {input} > {output.duplicate_table};"
         "Rscript --vanilla {ATAC_TOOLS}/qc_bargraph.R {output.duplicate_table} sample_label percent_duplication {output.duplicate_percent_pdf};"
         "Rscript --vanilla {ATAC_TOOLS}/qc_bargraph.R {output.duplicate_table} sample_label estimated_library_size {output.est_libsize_pdf};"
-        
+  
 
 rule plot_bam_reads:
     input:
@@ -504,7 +522,7 @@ rule plot_insert_size_hist_picard:
         job_name="plot_insert_size"
     threads: 1
     shell:
-        "java -jar -XX:ParallelGCThreads={JAVA_GC_CORES} {PICARD_JAR} CollectInsertSizeMetrics I={input.bam} O={output.histogram_data} H={output.histogram_plot} W=1000 STOP_AFTER=50000000" 
+        "java -jar -XX:ParallelGCThreads=" + str(JAVA_GC_CORES) + "{PICARD_JAR} CollectInsertSizeMetrics I={input.bam} O={output.histogram_data} H={output.histogram_plot} W=1000 STOP_AFTER=50000000" 
 
 ruleorder: plot_insert_size_hist_snake > plot_insert_size_hist_picard
 
@@ -527,6 +545,8 @@ rule make_coverage_bigwig:
         # --ignoreForNormalization chrX chrY taken off because we should remove this before calculating peaks anyway
         "bamCoverage --bam {input.bam} -o {output} --binSize 100 --normalizeUsingRPKM --extendReads --numberOfProcessors {threads}; "
 
+# Don't do anything that requires multiple libraries (20170823 Ben)
+"""
 rule make_sample_correlation_matrix:
     input: 
          expand("output/coverage_data/qc/{sample_label}.100bp_coverage.bw", sample_label=sample_labels)
@@ -558,6 +578,7 @@ rule plot_sample_correlation:
     benchmark: "benchmarks/sample_correlation_plot/v1.txt"
     shell:
         "plotCorrelation --corData {input} --colorMap RdYlBu --plotNumbers --plotFile {output} --corMethod spearman --whatToPlot heatmap"
+"""
 
 rule make_insertion_bed:
     input:
@@ -604,8 +625,8 @@ rule run_MACS2_bam:
         job_name = "macs2"
     benchmark: "benchmarks/macs2/{sample_label}.bam.txt"
     shell:
-        "macs2 callpeak -g {EFFECTIVE_GENOME_SIZE} --name {wildcards.sample_label} --treatment {input.bam} --outdir output/peaks --format BAMPE --nomodel --broad --nolambda --keep-dup all -p 0.01 -B --SPMR;"
-        "macs2 callpeak -g {EFFECTIVE_GENOME_SIZE} --name {wildcards.sample_label} --treatment {input.bam} --outdir output/peaks --format BAMPE --nomodel --call-summits --nolambda --keep-dup all -p 0.01 -B --SPMR;"         
+        "macs2 callpeak -g {EFFECTIVE_GENOME_SIZE} --name {wildcards.sample_label} --treatment {input.bam} --outdir output/peaks --format BAMPE --nomodel --broad --nolambda --keep-dup all -p " + str(CALLPEAKS_PVAL) + " -B --SPMR;"
+        "macs2 callpeak -g {EFFECTIVE_GENOME_SIZE} --name {wildcards.sample_label} --treatment {input.bam} --outdir output/peaks --format BAMPE --nomodel --call-summits --nolambda --keep-dup all -p " + str(CALLPEAKS_PVAL) + " -B --SPMR;"         
 
 rule run_MACS2_bed:
     input:
@@ -626,8 +647,8 @@ rule run_MACS2_bed:
         job_name = "macs2"
     benchmark: "benchmarks/macs2/{sample_label}.bed.txt"
     shell: 
-        "macs2 callpeak -g {EFFECTIVE_GENOME_SIZE} --name {wildcards.sample_label} --treatment {input.bed} --outdir output/peaks --format BED --shift -75 --extsize 150 --nomodel --broad --nolambda --keep-dup all -p 0.01 -B --SPMR;"
-        "macs2 callpeak -g {EFFECTIVE_GENOME_SIZE} --name {wildcards.sample_label} --treatment {input.bed} --outdir output/peaks --format BED --shift -75 --extsize 150 --nomodel --call-summits --nolambda --keep-dup all -p 0.01 -B --SPMR;"
+        "macs2 callpeak -g {EFFECTIVE_GENOME_SIZE} --name {wildcards.sample_label} --treatment {input.bed} --outdir output/peaks --format BED --shift -75 --extsize 150 --nomodel --broad --nolambda --keep-dup all -p " + str(CALLPEAKS_PVAL) + " -B --SPMR;"
+        "macs2 callpeak -g {EFFECTIVE_GENOME_SIZE} --name {wildcards.sample_label} --treatment {input.bed} --outdir output/peaks --format BED --shift -75 --extsize 150 --nomodel --call-summits --nolambda --keep-dup all -p " + str(CALLPEAKS_PVAL) + " -B --SPMR;"
 
 ruleorder: run_MACS2_bed > run_MACS2_bam
 
@@ -650,9 +671,11 @@ rule run_MACS2_all_sample_bed:
     benchmark: "benchmarks/macs2/all_sample.bed.txt"
     shell:
         "cat {input.beds} > {output.merged_bed};"
-        "macs2 callpeak -g {EFFECTIVE_GENOME_SIZE} --name all_sample --treatment {output.merged_bed} --outdir output/peaks/all_samples --format BED --shift -75 --extsize 150 --nomodel --broad --nolambda --keep-dup all -p 0.01 -B --SPMR;"
-        "macs2 callpeak -g {EFFECTIVE_GENOME_SIZE} --name all_sample --treatment {output.merged_bed} --outdir output/peaks/all_samples --format BED --shift -75 --extsize 150 --nomodel --call-summits --nolambda --keep-dup all -p 0.01 -B --SPMR;"
- 
+        "macs2 callpeak -g {EFFECTIVE_GENOME_SIZE} --name all_sample --treatment {output.merged_bed} --outdir output/peaks/all_samples --format BED --shift -75 --extsize 150 --nomodel --broad --nolambda --keep-dup all -p " + str(CALLPEAKS_PVAL) + " -B --SPMR;"
+        "macs2 callpeak -g {EFFECTIVE_GENOME_SIZE} --name all_sample --treatment {output.merged_bed} --outdir output/peaks/all_samples --format BED --shift -75 --extsize 150 --nomodel --call-summits --nolambda --keep-dup all -p " + str(CALLPEAKS_PVAL) + " -B --SPMR;"
+
+# Don't do anything that requires multiple libraries (20170823 Ben)
+"""
 rule run_MACS2_bdgcmp:
     input:
         peak_treatment = "output/peaks/{sample_label}_treat_pileup.bdg",
@@ -664,6 +687,7 @@ rule run_MACS2_bdgcmp:
     shell:
         "macs2 bdgcmp -t {input.peak_treatment} -c {input.peak_control} -m FE --outdir output/tracks --o-prefix {wildcards.sample_label} -p 0.0001 > /dev/null;"
         "macs2 bdgcmp -t {input.peak_treatment} -c {input.peak_control} -m logLR --outdir output/tracks --o-prefix {wildcards.sample_label} -p 0.0001 > /dev/null" 
+"""
 
 rule convert_MACS2_signal_to_bigwig:
     input:
@@ -807,7 +831,8 @@ rule plot_insertion_heat:
        
 ruleorder: plot_insertion_profile > calc_insertion_matrix
 
-
+# Don't do anything that requires multiple libraries (20170823 Ben)
+"""
 rule calculate_all_sample_nuc_content:
      input:
          "output/peaks/all_samples/all_sample_peaks.narrowPeak"
@@ -841,6 +866,7 @@ rule compile_all_sample_nuc_matrix:
         "coverage_columns=$(ls {input.count_files}  | while read count_file; do echo -n '<(cut -f 11 ' $count_file ') '; done); "
         "echo chr start end name score strand signal p q peak at gc A C G T N O length {sample_labels} | tr ' ' '\t' > {output}; "
         "eval \"paste {input.narrowpeak} <(cut -f 6- {input.nuc_content}) $coverage_columns >> {output}\""
+"""
 
 rule calculate_size_factors:
     input:
@@ -864,6 +890,7 @@ rule run_cqn:
     shell:
         "Rscript --vanilla {ATAC_TOOLS}/cqn.R {input.data} {input.sizeFactors} {output.normalized_table} {output.cqn} {output.heatmap} {output.cor}"
 
+"""
 rule plot_pca:
     input:
         data = "output/cqn/tables/all_samples.nuc_matrix.cqn.txt"
@@ -901,4 +928,5 @@ rule ma_plots:
     benchmark: "benchmarks/ma_plot/ma_plot.{contrast_name}.txt"
     shell:
         "Rscript --vanilla {ATAC_TOOLS}/ma_plot.R {input.table} {input.samples} {output.ma} {output.corr} {output.volcano}"
+"""
  

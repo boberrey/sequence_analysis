@@ -13,7 +13,7 @@ Outputs:
     'insert bed file'
 
 Other required scripts:
-    trim_and_align.sh
+    trim_and_align_pe.sh
     get_insert_bed.sh
 
 
@@ -58,7 +58,7 @@ def main():
     args = parser.parse_args()
 
     # Pre-defined variables, constants, and settings
-    fastq_extension = 'fastq'
+    fastq_extensions = ['fastq.gz', 'fastq']
     bam_extension = 'bam'
     r1_identifier = '_R1_'
     r2_identifier = '_R2_'
@@ -92,7 +92,7 @@ def main():
     # Gather fastq files:
     print("Finding fastq files in directory {}".format(fastq_dir))
     fastq_list = find_files_in_directory(fastq_dir, 
-        extensionList=[fastq_extension])
+        extensionList=fastq_extensions)
     
     # Split fastqs based of r1 or r2
     r1_fastqs = []

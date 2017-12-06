@@ -38,7 +38,9 @@ def main():
     group = parser.add_argument_group('required arguments:')
     group.add_argument('-fd', '--fastq_directory', required=True,
         help='directory containing fastq files')
-    group.add_argument('-a', '--adapter_file', required=True,
+    group.add_argument('-a1', '--adapter_file1', required=True,
+        help='file containing adapters for trimming')
+    group.add_argument('-a2', '--adapter_file2', required=True,
         help='file containing adapters for trimming')
     group.add_argument('-g', '--ref_genome', required=True,
         help='reference genome for bowtie2')
@@ -73,7 +75,8 @@ def main():
         sys.exit()
 
     # Other required arguments:
-    adapter_file = args.adapter_file
+    adapter_file1 = args.adapter_file1
+    adapter_file2 = args.adapter_file2
     ref_genome = args.ref_genome
 
     # If no output directory given, use input directory
@@ -118,7 +121,7 @@ def main():
         # trim_and_align.sh r1.fastq r2.fastq adapters.fa ref_genome output_dir output_prefix
         # subprocess.check_output returns stdout as a string
         log = subprocess.check_output([alignment_script, r1_fastq, r2_fastq, 
-            adapter_file, ref_genome, output_dir, prefix])
+            adapter_file1, adapter_file2, ref_genome, output_dir, prefix])
 
         # Convert bytestring to writable string:
         log = log.decode(bytestring_encoding)

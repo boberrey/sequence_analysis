@@ -4,12 +4,13 @@ import os
 import sys
 import glob
 
+
+
 # Input data
 
-FASTQ_DIR = sys.argv[1]
-METADATA_FILE = FASTQ_DIR + FASTQ_DIR.split('/')[-1] + "_metadata.txt"
-print(METADATA_FILE)
-BEDS = {"TSS" : '/shr/Downloaded_data/hg19_data/RefSeq_genes/parsed_hg19_RefSeq.merged.ANS.bed'}
+FASTQ_DIR = "/raid1/lab/ben/ATAC_playground/Fastqs"
+METADATA_FILE = "None"
+BEDS = {"TSS" : '/shr/Downloaded_data/hg19_data/RefSeq_genes/hg19_snakeATAC_parsed_merged_ANS.tss.bed'}
 NARROWPEAKS = {}
 BROADPEAKS = {}
 PCA_COLOR = "cell_type"
@@ -38,24 +39,23 @@ ALIGNING_THREADS = 16
 JAVA_GC_CORES = 16
 CALLPEAKS_PVAL = 1e-4
 
+# Functions
 
-# metadata file
-
-def make_meta(filename):
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
-    r1_files = list(map(os.path.abspath,glob.glob(os.path.join(FASTQ_DIR,"*_R1*.f*"))))
+def make_meta(fastq_dir):
+    r1_files = list(map(os.path.abspath,glob.glob(os.path.join(fastq_dir,"*_R1*.f*"))))
     if (len(r1_files) < 1):
         sys.exit("No fastqs with _R1 found.")
     r2_files = [os.path.join(os.path.dirname(r1_file), os.path.basename(r1_file).replace('R1', 'R2')) for r1_file in r1_files]
     if  all([os.path.isfile(r2_file) for r2_file in r2_files]) is False:
         sys.exit("Not all matching _R2 files found.")
     sample_labels = [os.path.basename(r1_file).split("_R1")[0] for r1_file in r1_files]
+    meta_prefix = os.path.commonprefix(sample_labels)
+    filename = fastq_dir + meta_prefix + "_metadata.txt"
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, 'w') as outfile:
         outfile.write("\t".join(["Name","Read1","Read2"]) + "\n")
         for sample_label, r1_file, r2_file in zip(sample_labels, r1_files, r2_files):
             if len(sample_label) > 30:
                 sample_label = sample_label[:20] + "..." + sample_label[-10:]
             outfile.write("\t".join([sample_label, r1_file, r2_file]) + "\n")
-
-make_meta(METADATA_FILE)
-
+    return filename
