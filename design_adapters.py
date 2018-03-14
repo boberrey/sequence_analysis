@@ -162,7 +162,7 @@ def format_new_adapters(n, idx_set, adapter, primer, base_name, forward):
     for i in range(n):
         idx = idx_set.pop()
         full_seq = adapter + idx + primer
-        new_name = base_name + idx_indicator + str(i + 1)
+        new_name = base_name + '_' + idx_indicator + str(i + 1)
         idx_seq = rev_comp(idx)
         alt_idx = idx_seq
         if forward:
