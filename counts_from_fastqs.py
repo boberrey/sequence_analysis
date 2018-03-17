@@ -229,7 +229,7 @@ def rev_comp(seq, complement_dict={'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}, miss
 def get_first_match(lst, substr):
 	# Return the first element of the list that contains the substring
 	for i in lst:
-		if i.contains(substr):
+		if substr in i:
 			return i
 	return None
 
@@ -242,24 +242,25 @@ class FastqGroup:
 	
 	def __init__(self, fastq_basename):
 		self.group_name = fastq_basename
-		self.all_matching_files = glob.glob(fastq_basename)
+		self.all_matching_files = glob.glob("*{}*".format(fastq_basename))
 		self.r1_file = get_first_match(self.all_matching_files, r1_id)
 		self.r2_file = get_first_match(self.all_matching_files, r2_id)
 		self.i1_file = get_first_match(self.all_matching_files, i1_id)
 		self.r2_file = get_first_match(self.all_matching_files, i2_id)
 		self.reads = 0
 		self.read_length = 0
+		print(self.group_name)
 		with gzip.open(self.r1_file, 'r') as f:
 			for line in f:
 				self.reads += 1
-		self.reads = self.reads/4
+		self.reads = int(self.reads/4)
 		with gzip.open(self.r1_file, 'r') as f:
 			junk_header = f.readline()
 			self.read_length = len(f.readline())
 
 	def __repr__(self):
 		# representation of object instance
-		return("{}_nr{}_rl{}".format(self.group_name, self.reads, self.read_length)
+		return("{}_nr{}_rl{}".format(self.group_name, self.reads, self.read_length))
 
 
 if __name__ == '__main__':
