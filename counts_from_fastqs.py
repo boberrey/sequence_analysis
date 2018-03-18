@@ -43,12 +43,6 @@ read1_primers = [
 "GCATGCTAGCGACGTTCCTGGATCC" # pSTAC.3 F_primer sequence
 ]
 
-# 20171103: We now have multiple R2 primers. I've modified this script to allow for
-# multiple R2 primers when running in R1 mode, but maybe the smart thing is just to run
-# in R2 mode from now on?
-#read2_primer = "AGATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCG"	# TruSeqR2
-#read2_primer = "GATCGTGAGCCGGACCCAGCGTTGAGAAGAGGCAAAG"  # TtEndoR2
-
 read2_primers = [
 "AGATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCG",  # TruSeqR2
 "GATCGTGAGCCGGACCCAGCGTTGAGAAGAGGCAAAG",  # TtEndoR2

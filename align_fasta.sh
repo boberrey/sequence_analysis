@@ -38,7 +38,7 @@ echo "Aligning with bowtie2..."
 echo ""
 
 # Redirect bowtie2 metrics (normally stderr) to stdout for better wrapper script handling:
-bowtie2 -f -p $n_cores -x $ref_genome -U $seqs -S $sam_file 2>&1
+bowtie2 -f --very-sensitive -p $n_cores -x $ref_genome -U $seqs -S $sam_file 2>&1
 
 # Make bam file:
 samtools view -b -S -o $unsorted_bam_file $sam_file 2>&1
